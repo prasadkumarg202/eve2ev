@@ -1,0 +1,46 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.python-version
+
+# --- Tooling caches ---
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Pipeline data (regenerable; never commit) ---
+downloads/
+processed/
+parquet/
+logs/
+checkpoints/
+sql/*.sql.gz
+*.osm.pbf
+*.osm.bz2
+*.osm
+*.pbf
+*.sqlite
+*.sqlite3
+*.duckdb
+*.md5
+
+# --- Editors / OS ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

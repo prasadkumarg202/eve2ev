@@ -1,0 +1,49 @@
+# --- VCS / editor ---
+.git
+.gitignore
+.gitattributes
+.idea
+.vscode
+
+# --- Python build / cache ---
+__pycache__
+*.py[cod]
+*.egg-info
+.eggs
+build
+dist
+.venv
+venv
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# --- Data & pipeline outputs (never bake into the image) ---
+downloads
+raw
+processed
+parquet
+logs
+checkpoints
+*.osm.pbf
+*.osm.bz2
+*.osm
+*.sqlite
+*.sqlite3
+*.duckdb
+*.csv
+*.geojson
+
+# --- Secrets / local env ---
+.env
+.env.*
+!.env.example
+
+# --- Docker / docs (not needed inside the image) ---
+Dockerfile
+docker-compose.yml
+.dockerignore
+docs
+Makefile

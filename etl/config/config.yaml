@@ -1,0 +1,117 @@
+# ================================================================
+# osm-india-etl — main configuration
+# All values can be overridden via environment variables prefixed
+# with OSM_ (nested keys use "__", e.g. OSM_DATABASE__HOST).
+# ================================================================
+
+project:
+  name: osm-india-etl
+  country: India
+  country_iso: IN
+
+# ---------------- Source / discovery ----------------
+source:
+  # Geofabrik India sub-region index (regional .osm.pbf zone files live here).
+  base_url: "https://download.geofabrik.de/asia/india/"
+  # Fallback full-country extract if zone discovery yields nothing.
+  country_fallback_url: "https://download.geofabrik.de/asia/india-latest.osm.pbf"
+  # Regex of files to accept during discovery (zone extracts + latest).
+  file_pattern: '.*\.osm\.pbf$'
+  # Prefer these zone stems if present (still discovered dynamically).
+  preferred_zones:
+    - southern-zone
+    - northern-zone
+    - western-zone
+    - eastern-zone
+    - central-zone
+    - north-eastern-zone
+  verify_checksum: true          # use .md5 sidecar when available
+  verify_size: true
+
+# ---------------- Paths ----------------
+paths:
+  downloads: downloads
+  raw: downloads/raw
+  processed: processed
+  parquet: parquet
+  logs: logs
+  sql: sql
+  checkpoints: checkpoints
+
+# ---------------- Download tuning ----------------
+download:
+  concurrency: 3                 # parallel file downloads
+  chunk_size: 1048576            # 1 MiB streaming chunks
+  max_retries: 5
+  backoff_factor: 2.0
+  timeout_seconds: 120
+  resume: true
+
+# ---------------- Extraction (pyosmium) ----------------
+extract:
+  # Which top-level entity families to extract.
+  extract_admin: true            # boundary=administrative
+  extract_places: true           # place=*
+  extract_highways: true         # highway=*
+  extract_buildings: false       # WARNING: buildings are huge; off by default
+  extract_postcodes: true        # addr:postcode / postal_code
+  batch_size: 200000             # records flushed to parquet per batch
+  # India admin_level -> logical tier (used to bucket boundaries).
+  admin_levels:
+    2: country
+    4: state
+    5: division
+    6: district
+    7: subdistrict
+    8: municipality
+    9: ward
+    10: neighbourhood
+
+# ---------------- Transform ----------------
+transform:
+  normalize_names: true
+  generate_aliases: true
+  detect_duplicates: true
+  dedupe_distance_m: 150         # merge same-name places within this radius
+  compute_geometry: true         # centroids, bbox, area
+  default_language: en
+
+# ---------------- Load / export ----------------
+export:
+  formats: [parquet, csv, geojson, sqlite, duckdb]   # add "postgis" to push to PG
+  csv_delimiter: ","
+  geojson_simplify_tolerance: 0.0
+
+database:
+  # PostGIS target (used when "postgis" is in export.formats or `load` is run).
+  driver: postgresql
+  host: localhost
+  port: 5432
+  name: osm_india
+  user: osm
+  password: osm
+  schema: public
+  sqlite_path: processed/osm_india.sqlite
+  duckdb_path: processed/osm_india.duckdb
+
+# ---------------- Search ----------------
+search:
+  fts: true                      # SQLite FTS5
+  trigram: true                  # pg_trgm on PostGIS
+  fuzzy: true                    # rapidfuzz
+  phonetic: true                 # jellyfish metaphone/soundex
+  autocomplete_limit: 10
+
+# ---------------- API ----------------
+api:
+  host: 0.0.0.0
+  port: 8000
+  title: "OSM India Location API"
+  backend: sqlite                # sqlite | duckdb | postgis
+  cors_origins: ["*"]
+
+# ---------------- Runtime ----------------
+runtime:
+  workers: 0                     # 0 = os.cpu_count()
+  log_level: INFO
+  rich_progress: true

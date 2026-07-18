@@ -1,0 +1,105 @@
+# =============================================================================
+# osm-india-etl — Docker Compose stack
+#
+#   docker compose up -d postgis        # start PostGIS only
+#   docker compose run --rm etl run     # full pipeline against PostGIS
+#   docker compose up -d api            # serve the location API on :8000
+#
+# Copy .env.example to .env first; any OSM_* variable set there overrides
+# config/config.yaml (nested keys use "__", e.g. OSM_DOWNLOAD__CONCURRENCY).
+# OSM_DATABASE__HOST is forced to the "postgis" service hostname below.
+# =============================================================================
+
+services:
+  # ------------------------------------------------------------------ PostGIS
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: osm-india-postgis
+    environment:
+      POSTGRES_DB: osm_india
+      POSTGRES_USER: osm
+      POSTGRES_PASSWORD: osm
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U osm -d osm_india"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- ETL runner
+  # One-shot pipeline container. Data directories are bind-mounted so
+  # downloads, checkpoints, and outputs survive container recreation
+  # (resume/recovery depends on this).
+  etl:
+    build:
+      context: .
+      target: runtime
+    image: osm-india-etl:latest
+    container_name: osm-india-etl
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OSM_DATABASE__HOST: postgis
+      OSM_DATABASE__PORT: "5432"
+      OSM_DATABASE__NAME: osm_india
+      OSM_DATABASE__USER: osm
+      OSM_DATABASE__PASSWORD: osm
+    volumes:
+      - ./downloads:/app/downloads
+      - ./processed:/app/processed
+      - ./parquet:/app/parquet
+      - ./checkpoints:/app/checkpoints
+      - ./logs:/app/logs
+    depends_on:
+      postgis:
+        condition: service_healthy
+    # ENTRYPOINT is `python main.py`; this arg is the CLI command.
+    command: ["run"]
+    restart: "no"
+
+  # ---------------------------------------------------------------- Location API
+  # FastAPI app (osm_india_etl.api.app:app) on http://localhost:8000.
+  # Default backend is SQLite (processed/osm_india.sqlite, mounted read-only
+  # via ./processed); set OSM_API__BACKEND=postgis to query PostGIS instead.
+  api:
+    build:
+      context: .
+      target: api
+    image: osm-india-etl-api:latest
+    container_name: osm-india-api
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OSM_DATABASE__HOST: postgis
+      OSM_DATABASE__PORT: "5432"
+      OSM_DATABASE__NAME: osm_india
+      OSM_DATABASE__USER: osm
+      OSM_DATABASE__PASSWORD: osm
+      OSM_API__HOST: 0.0.0.0
+      OSM_API__PORT: "8000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./processed:/app/processed
+      - ./parquet:/app/parquet
+    depends_on:
+      postgis:
+        condition: service_started
+    command: ["serve"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
