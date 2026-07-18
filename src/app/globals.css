@@ -1,26 +1,516 @@
 @import "tailwindcss";
 
+/* ================================================================
+   Ev2Ev Design System — Global Styles
+   Electric Green + Deep Navy + Amber Accents
+   ================================================================ */
+
+/* === Custom Theme Tokens === */
+@theme {
+  /* Brand Colors */
+  --color-ev-green-50: #ecfdf3;
+  --color-ev-green-100: #d1fae0;
+  --color-ev-green-200: #a6f4c5;
+  --color-ev-green-300: #6ee7a0;
+  --color-ev-green-400: #34d375;
+  --color-ev-green-500: #10b94e;
+  --color-ev-green-600: #059640;
+  --color-ev-green-700: #047835;
+  --color-ev-green-800: #065f2c;
+  --color-ev-green-900: #064e26;
+  --color-ev-green-950: #022c14;
+
+  --color-navy-50: #eff3ff;
+  --color-navy-100: #dbe3fe;
+  --color-navy-200: #bfcefe;
+  --color-navy-300: #93a8fd;
+  --color-navy-400: #6078fa;
+  --color-navy-500: #3b50f5;
+  --color-navy-600: #2530ea;
+  --color-navy-700: #1d22d7;
+  --color-navy-800: #1e1eae;
+  --color-navy-900: #0f1137;
+  --color-navy-950: #080a1f;
+
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+
+  --color-surface-50: #fafafa;
+  --color-surface-100: #f4f4f5;
+  --color-surface-200: #e4e4e7;
+  --color-surface-300: #d4d4d8;
+  --color-surface-400: #a1a1aa;
+  --color-surface-500: #71717a;
+  --color-surface-600: #52525b;
+  --color-surface-700: #3f3f46;
+  --color-surface-800: #27272a;
+  --color-surface-900: #18181b;
+  --color-surface-950: #09090b;
+
+  /* Spacing */
+  --spacing-18: 4.5rem;
+  --spacing-88: 22rem;
+  --spacing-128: 32rem;
+
+  /* Border Radius */
+  --radius-4xl: 2rem;
+
+  /* Shadows */
+  --shadow-glow: 0 0 20px rgba(16, 185, 78, 0.3);
+  --shadow-glow-lg: 0 0 40px rgba(16, 185, 78, 0.4);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.12), 0 8px 32px rgba(0, 0, 0, 0.08);
+
+  /* Animation */
+  --animate-fade-in: fade-in 0.5s ease-out;
+  --animate-slide-up: slide-up 0.5s ease-out;
+  --animate-slide-down: slide-down 0.3s ease-out;
+  --animate-scale-in: scale-in 0.3s ease-out;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-float: float 3s ease-in-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 78, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(16, 185, 78, 0.6); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* === CSS Custom Properties for Theming === */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Light Mode */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f4f4f5;
+  --bg-tertiary: #e4e4e7;
+  --bg-glass: rgba(255, 255, 255, 0.7);
+  --bg-glass-heavy: rgba(255, 255, 255, 0.85);
+
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-tertiary: #a1a1aa;
+  --text-inverse: #ffffff;
+
+  --border-primary: #e4e4e7;
+  --border-secondary: #d4d4d8;
+  --border-accent: #10b94e;
+
+  --accent: #10b94e;
+  --accent-hover: #059640;
+  --accent-light: #ecfdf3;
+
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --info: #3b82f6;
+  --success: #10b94e;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  --bg-primary: #09090b;
+  --bg-secondary: #18181b;
+  --bg-tertiary: #27272a;
+  --bg-glass: rgba(9, 9, 11, 0.7);
+  --bg-glass-heavy: rgba(9, 9, 11, 0.85);
+
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
+  --text-inverse: #09090b;
+
+  --border-primary: #27272a;
+  --border-secondary: #3f3f46;
+  --border-accent: #10b94e;
+
+  --accent: #34d375;
+  --accent-hover: #10b94e;
+  --accent-light: #022c14;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* === Base Styles === */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-geist-sans, 'Inter', system-ui, -apple-system, sans-serif);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* === Glassmorphism Utility Classes === */
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-primary);
+}
+
+.glass-heavy {
+  background: var(--bg-glass-heavy);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-primary);
+}
+
+/* === Card Styles === */
+.card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border-accent);
+  transform: translateY(-2px);
+}
+
+/* === Gradient Backgrounds === */
+.gradient-hero {
+  background: linear-gradient(
+    135deg,
+    #022c14 0%,
+    #0f1137 40%,
+    #080a1f 100%
+  );
+}
+
+.gradient-accent {
+  background: linear-gradient(135deg, #10b94e, #059640);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #34d375, #10b94e, #fbbf24);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-border {
+  position: relative;
+  background: var(--bg-primary);
+  border-radius: 1rem;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #10b94e, #3b50f5, #fbbf24);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.gradient-border:hover::before {
+  opacity: 1;
+}
+
+/* === Map Container === */
+.maplibregl-map {
+  font-family: inherit;
+}
+
+.maplibregl-popup-content {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 0.75rem !important;
+  box-shadow: var(--shadow-lg) !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.maplibregl-popup-close-button {
+  color: var(--text-secondary) !important;
+  font-size: 1.25rem !important;
+  padding: 4px 8px !important;
+}
+
+.maplibregl-popup-tip {
+  border-top-color: var(--bg-primary) !important;
+}
+
+/* === Station Marker === */
+.station-marker {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b94e, #059640);
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.station-marker:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 16px rgba(16, 185, 78, 0.5);
+}
+
+.station-marker.available {
+  background: linear-gradient(135deg, #10b94e, #059640);
+}
+
+.station-marker.busy {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.station-marker.offline {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.cluster-marker {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b94e, #059640);
+  border: 3px solid white;
+  box-shadow: 0 2px 12px rgba(16, 185, 78, 0.4);
+  color: white;
+  font-weight: 700;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.cluster-marker:hover {
+  transform: scale(1.15);
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* === Focus Styles (Accessibility) === */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* === Selection === */
+::selection {
+  background: rgba(16, 185, 78, 0.3);
+  color: var(--text-primary);
+}
+
+/* === Shimmer Loading === */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 25%,
+    var(--bg-tertiary) 50%,
+    var(--bg-secondary) 75%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+/* === Badge Variants === */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  transition: all 0.2s ease;
+}
+
+.badge-available {
+  background: #ecfdf3;
+  color: #047835;
+}
+
+.dark .badge-available {
+  background: rgba(16, 185, 78, 0.15);
+  color: #6ee7a0;
+}
+
+.badge-busy {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.dark .badge-busy {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+}
+
+.badge-offline {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.dark .badge-offline {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+/* === Connector Icons === */
+.connector-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: var(--bg-secondary);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+/* === Rating Stars === */
+.star {
+  color: var(--border-secondary);
+  transition: color 0.15s ease;
+}
+
+.star.filled {
+  color: #fbbf24;
+}
+
+.star.half {
+  background: linear-gradient(90deg, #fbbf24 50%, var(--border-secondary) 50%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* === Smooth Page Transitions === */
+.page-enter {
+  animation: fade-in 0.3s ease-out, slide-up 0.3s ease-out;
+}
+
+/* === Print Styles === */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ================================================================
+   Mobile / PWA — safe areas, standalone mode, bottom-nav clearance
+   ================================================================ */
+
+:root {
+  --bottom-nav-h: 0px;
+}
+
+/* Safe-area helper utilities (notch / home indicator) */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.safe-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Below md: the fixed bottom tab bar is visible, so reserve space for it
+   and the device home indicator, and let the sticky header clear the notch. */
+@media (max-width: 767px) {
+  :root {
+    --bottom-nav-h: 4rem;
+  }
+
+  /* Keep page content (and footers) from hiding behind the tab bar. */
+  body {
+    padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
+  }
+
+  /* The sticky header should sit below the status bar / notch when installed. */
+  header.glass-heavy {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* When launched as an installed app, avoid text selection / callouts that
+   break the native feel, but keep it inside inputs. */
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: none;
+  }
 }
