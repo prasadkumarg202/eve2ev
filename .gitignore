@@ -13,6 +13,12 @@
 # testing
 /coverage
 
+# playwright
+/e2e-results/
+/playwright-report/
+/test-results/
+/blob-report/
+
 # next.js
 /.next/
 /out/
@@ -34,6 +40,7 @@ yarn-error.log*
 .env*
 !.env.example
 !.env.capacitor.example
+!.env.mcp.example
 
 # Claude Code session history
 .claude-code-history/
