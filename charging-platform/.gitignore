@@ -1,0 +1,12 @@
+# Secrets (service-role key) — never commit
+.env
+
+# Generated ETL scratch: fetched payloads and hand-built SQL batches
+out/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/

@@ -6,8 +6,10 @@
 
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { generateSeedStations } from "@/lib/data/seed-stations";
+import { searchStations } from "@/lib/supabase/stations";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 import type { ChargingStation, SearchFilters } from "@/lib/types/station";
 
 // Generate stations once (module-level singleton)
@@ -17,6 +19,40 @@ function getStations(): ChargingStation[] {
     _stations = generateSeedStations();
   }
   return _stations;
+}
+
+/**
+ * Live stations from the master charging database, cached per session.
+ *
+ * Falls back to bundled seed data when Supabase is unconfigured or holds
+ * no rows yet, so the map is never empty while the ETL is still filling
+ * the table.
+ */
+let _remote: ChargingStation[] | null = null;
+const _queryCache = new Map<string, ChargingStation[]>();
+
+/**
+ * Run a search against the database.
+ *
+ * The query goes to Postgres rather than being applied in the browser: the
+ * `stations_search` RPC matches name, city, district, state, operator and
+ * PIN, with a trigram fallback for misspellings. Client-side filtering
+ * could only ever match the fields already loaded, which is why area
+ * searches returned nothing while `city` was blank.
+ */
+async function fetchStations(query: string): Promise<ChargingStation[]> {
+  const key = query.trim().toLowerCase();
+  const cached = _queryCache.get(key);
+  if (cached) return cached;
+
+  const rows = await searchStations({
+    query: key || undefined,
+    limit: 500,
+  }).catch(() => []);
+
+  _queryCache.set(key, rows);
+  if (!key) _remote = rows; // the unfiltered set, for fallback decisions
+  return rows;
 }
 
 function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -32,12 +68,54 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 export function useStations(filters?: SearchFilters) {
-  const stations = getStations();
+  const seed = getStations();
+  const query = filters?.query?.trim() ?? "";
+  const key = query.toLowerCase();
+
+  // Results are keyed by the query they belong to, so a stale response from
+  // a previous keystroke can never be rendered against the current one.
+  const [fetched, setFetched] = useState<{ q: string; rows: ChargingStation[] } | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (!isSupabaseConfigured() || _queryCache.has(key)) return;
+    let active = true;
+    // Debounce so typing an area name doesn't fire a request per keystroke.
+    const timer = setTimeout(() => {
+      fetchStations(key).then((rows) => {
+        if (active) setFetched({ q: key, rows });
+      });
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [key]);
+
+  // Read the cache during render; no state write needed on a cache hit.
+  const remote: ChargingStation[] | null =
+    _queryCache.get(key) ?? (fetched?.q === key ? fetched.rows : null);
+  const loading = isSupabaseConfigured() && remote === null;
+
+  // Seed data stands in until the database answers, and permanently if the
+  // table is still empty — an empty result must not blank the UI.
+  // Once the database has answered, trust it — including an empty answer for
+  // a query that genuinely has no matches. Falling back to seed data only
+  // when the *unfiltered* set is empty avoids showing fake stations for a
+  // real "no results" case.
+  const databaseHasData = (_remote?.length ?? 0) > 0;
+  const usingDatabase = isSupabaseConfigured() && databaseHasData && remote !== null;
+  const stations = usingDatabase ? remote : seed;
+  const source: "database" | "seed" = usingDatabase ? "database" : "seed";
 
   const filtered = useMemo(() => {
     let result = [...stations];
 
-    if (filters?.query) {
+    // Text matching happens in Postgres when the database is serving, so
+    // re-applying it here would discard trigram and district matches the
+    // client can't see. Only the seed-data path needs local filtering.
+    if (filters?.query && !usingDatabase) {
       const q = filters.query.toLowerCase();
       result = result.filter(
         (s) =>
@@ -138,7 +216,7 @@ export function useStations(filters?: SearchFilters) {
     }
 
     return result;
-  }, [stations, filters]);
+  }, [stations, filters, usingDatabase]);
 
   const page = filters?.page ?? 1;
   const limit = filters?.limit ?? 20;
@@ -152,6 +230,9 @@ export function useStations(filters?: SearchFilters) {
     page,
     limit,
     totalPages: Math.ceil(filtered.length / limit),
+    loading,
+    /** Where the rendered stations came from — useful for a UI badge. */
+    source,
   };
 }
 

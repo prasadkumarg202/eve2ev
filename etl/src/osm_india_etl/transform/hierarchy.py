@@ -138,22 +138,35 @@ def _display_name(rec: LocationRecord) -> str:
     return rec.name_en or rec.name
 
 
-def build_hierarchy(records: list[LocationRecord]) -> None:
-    """Link every record to its administrative ancestors, in place."""
-    containment = _ContainmentIndex(records) if HAS_SHAPELY else None
-    proximity = _ProximityIndex(records)
-    by_id: dict[str, LocationRecord] = {rec.location_id: rec for rec in records}
+def is_parent_candidate(rec: LocationRecord) -> bool:
+    """Can this record ever act as somebody's administrative parent?
 
-    # Parents first: rank ascending, larger areas before smaller at equal rank
-    # so e.g. states resolve before same-ranked divisions nested inside them.
-    ordered = sorted(records, key=lambda r: (r.rank, -(r.area_sqkm or 0.0)))
+    Only admin-style areas can. Streets, roads, buildings and postcodes —
+    ~98% of a typical extract — never can, which is what lets the transform
+    stage stream: the resolver only has to hold this subset in memory.
+    """
+    return rec.place_type in _PARENT_TYPES
 
-    for rec in ordered:
+
+class HierarchyResolver:
+    """Reusable parent resolver built over a fixed set of parent candidates.
+
+    Built once from the (small) set of admin areas, it can then attach
+    ancestry to an unbounded stream of child records without holding them.
+    """
+
+    def __init__(self, parents: list[LocationRecord]) -> None:
+        self._containment = _ContainmentIndex(parents) if HAS_SHAPELY else None
+        self._proximity = _ProximityIndex(parents)
+        self._by_id: dict[str, LocationRecord] = {p.location_id: p for p in parents}
+
+    def attach(self, rec: LocationRecord) -> None:
+        """Set parent_id / hierarchy / state_name / district_name in place."""
         parent: LocationRecord | None = None
-        if containment:
-            parent = containment.find_parent(rec)
+        if self._containment:
+            parent = self._containment.find_parent(rec)
         if parent is None:
-            parent = proximity.find_parent(rec)
+            parent = self._proximity.find_parent(rec)
 
         if parent is not None and parent.location_id != rec.location_id:
             rec.parent_id = parent.location_id
@@ -164,7 +177,7 @@ def build_hierarchy(records: list[LocationRecord]) -> None:
         state = _display_name(rec) if rec.place_type is PlaceType.STATE else None
         district = _display_name(rec) if rec.place_type is PlaceType.DISTRICT else None
         for ancestor_id in reversed(rec.hierarchy):
-            ancestor = by_id.get(ancestor_id)
+            ancestor = self._by_id.get(ancestor_id)
             if ancestor is None:
                 continue
             if state is None and ancestor.place_type is PlaceType.STATE:
@@ -173,3 +186,13 @@ def build_hierarchy(records: list[LocationRecord]) -> None:
                 district = _display_name(ancestor)
         rec.state_name = state
         rec.district_name = district
+
+
+def build_hierarchy(records: list[LocationRecord]) -> None:
+    """Link every record to its administrative ancestors, in place."""
+    resolver = HierarchyResolver(records)
+
+    # Parents first: rank ascending, larger areas before smaller at equal rank
+    # so e.g. states resolve before same-ranked divisions nested inside them.
+    for rec in sorted(records, key=lambda r: (r.rank, -(r.area_sqkm or 0.0))):
+        resolver.attach(rec)

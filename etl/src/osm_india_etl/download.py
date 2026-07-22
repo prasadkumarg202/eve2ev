@@ -85,6 +85,37 @@ def _preference_rank(filename: str, preferred_zones: Sequence[str]) -> int:
     return len(preferred_zones)
 
 
+#: ``<zone-stem>-<YYMMDD>.osm.pbf`` — Geofabrik's dated snapshot naming.
+_DATED_SNAPSHOT_RE = re.compile(r"^(?P<stem>.+?)-(?P<date>\d{6})\.osm\.pbf$")
+
+
+def _latest_per_zone(items: list[DownloadItem]) -> list[DownloadItem]:
+    """Collapse Geofabrik's dated snapshots to the newest file per zone.
+
+    The index lists years of archives alongside the current extract
+    (``southern-zone-220101.osm.pbf`` … ``southern-zone-260719.osm.pbf``).
+    A permissive ``file_pattern`` matches all of them, so without this the
+    download stage fetches ~14x the intended data in redundant history.
+
+    Undated files (e.g. ``india-latest.osm.pbf``) are always kept.
+    """
+    newest: dict[str, tuple[str, DownloadItem]] = {}
+    passthrough: list[DownloadItem] = []
+
+    for item in items:
+        match = _DATED_SNAPSHOT_RE.match(item.filename)
+        if match is None:
+            passthrough.append(item)
+            continue
+        stem, date = match.group("stem"), match.group("date")
+        current = newest.get(stem)
+        # YYMMDD is zero-padded and fixed-width, so string order == date order.
+        if current is None or date > current[0]:
+            newest[stem] = (date, item)
+
+    return passthrough + [item for _, item in newest.values()]
+
+
 def _parse_index(
     html: str,
     base_url: str,
@@ -124,6 +155,7 @@ def _parse_index(
             )
         )
 
+    items = _latest_per_zone(items)
     items.sort(key=lambda it: (_preference_rank(it.filename, preferred_zones), it.filename))
     return items
 

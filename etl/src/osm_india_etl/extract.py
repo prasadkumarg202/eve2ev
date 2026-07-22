@@ -43,6 +43,11 @@ except ImportError:  # pragma: no cover
 
 _HandlerBase: type = osmium.SimpleHandler if osmium is not None else object
 
+#: Relation ``type`` values that pyosmium's area assembler turns into areas.
+#: Relations tagged with these are emitted by ``LocationHandler.area`` (with
+#: geometry) rather than ``LocationHandler.relation``.
+AREA_RELATION_TYPES = frozenset({"multipolygon", "boundary"})
+
 
 # --------------------------------------------------------------------------- #
 # Pure helpers (no osmium / pyarrow needed — unit-testable)
@@ -241,6 +246,8 @@ class LocationHandler(_HandlerBase):
         self.emitted = 0
         self.skipped_out_of_bbox = 0
         self.geometry_failures = 0
+        self.areas_emitted = 0
+        self.skipped_boundary_ways = 0
 
     # ---- shared plumbing ---------------------------------------------- #
     def _emit(self, record: LocationRecord) -> None:
@@ -268,7 +275,16 @@ class LocationHandler(_HandlerBase):
         self._emit(record)
 
     def way(self, w: Any) -> None:
-        record = tags_to_record(OSMType.WAY, w.id, self._tags(w), self.settings)
+        tags = self._tags(w)
+        # A `boundary=administrative` way is a *segment* of a boundary, not an
+        # admin unit — the relation carries the entity. Emitting these yields
+        # hundreds of nameless phantom "states" and border-line "countries"
+        # (e.g. "China-India LAC") that pollute hierarchy resolution.
+        # Genuine closed-way admin areas still arrive via `area()`.
+        if tags.get("boundary") == "administrative":
+            self.skipped_boundary_ways += 1
+            return
+        record = tags_to_record(OSMType.WAY, w.id, tags, self.settings)
         if record is None:
             return
         try:
@@ -284,13 +300,45 @@ class LocationHandler(_HandlerBase):
         self._emit(record)
 
     def relation(self, r: Any) -> None:
-        record = tags_to_record(OSMType.RELATION, r.id, self._tags(r), self.settings)
+        tags = self._tags(r)
+        # Area-typed relations (the overwhelming majority of admin boundaries)
+        # are emitted by `area()` instead, with assembled multipolygon
+        # geometry. Emitting here too would duplicate every boundary.
+        if tags.get("type") in AREA_RELATION_TYPES:
+            return
+        record = tags_to_record(OSMType.RELATION, r.id, tags, self.settings)
         if record is None:
             return
-        # Multipolygon assembly needs the area machinery; leave geometry to
-        # the transform stage.
         record.geometry_wkt = None
         self._emit(record)
+
+    def area(self, a: Any) -> None:
+        """Assembled multipolygon areas.
+
+        pyosmium scans the file twice when this callback exists and hands back
+        areas built from both closed ways and multipolygon/boundary relations.
+        Way-derived areas are skipped — `way()` already emitted those — so this
+        callback is the single source of geometry for boundary relations.
+        """
+        tags = self._tags(a)
+        # Way-derived areas were already emitted by `way()` — except admin
+        # boundaries, which `way()` deliberately skips, so a genuinely
+        # closed-way admin area is only captured here.
+        if a.from_way() and tags.get("boundary") != "administrative":
+            return
+        osm_type = OSMType.WAY if a.from_way() else OSMType.RELATION
+        record = tags_to_record(osm_type, a.orig_id(), tags, self.settings)
+        if record is None:
+            return
+        try:
+            record.geometry_wkt = self.wkt_factory.create_multipolygon(a)
+        except Exception:
+            # Broken/unclosed rings — keep the record, transform falls back to
+            # proximity-based parenting.
+            self.geometry_failures += 1
+            record.geometry_wkt = None
+        self._emit(record)
+        self.areas_emitted += 1
 
     # ---- geometry helpers ---------------------------------------------- #
     def _way_centroid(self, w: Any) -> tuple[float, float] | None:

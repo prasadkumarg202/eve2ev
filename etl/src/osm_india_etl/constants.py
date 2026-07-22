@@ -232,7 +232,11 @@ AUX_TABLES: tuple[str, ...] = ("locations", "geometry", "aliases")
 # Which PlaceTypes land in which table bucket.
 TYPE_TO_TABLE: dict[PlaceType, str] = {
     PlaceType.STATE: "states",
-    PlaceType.DIVISION: "states",
+    # DIVISION is deliberately unmapped. An Indian "division" is a tier
+    # *between* state and district (e.g. "Kolkata Division"), and admin_level=5
+    # / place=region also catches things like mountain ranges. Bucketing them
+    # into `states` put 133 divisions and "Himalayas" alongside 15 real states.
+    # Divisions remain queryable in `locations` via place_type='division'.
     PlaceType.DISTRICT: "districts",
     PlaceType.SUBDISTRICT: "subdistricts",
     PlaceType.MANDAL: "mandals",
